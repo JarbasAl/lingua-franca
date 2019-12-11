@@ -17,7 +17,7 @@ with open("readme.md", "r") as fh:
 
 setup(
     name='jarbas_lingua_franca',
-    version='0.1.0',
+    version='0.1.1',
     packages=['lingua_franca', 'lingua_franca.lang'],
     url='https://github.com/JarbasAl/lingua-franca',
     license='Apache2.0',
