@@ -341,6 +341,18 @@ def _extract_whole_number_with_text_en(tokens, short_scale, ordinals):
         prev_word = tokens[idx - 1].word if idx > 0 else ""
         next_word = tokens[idx + 1].word if idx + 1 < len(tokens) else ""
 
+        if is_numeric(word[:-2]) and \
+                (word.endswith("st") or word.endswith("nd") or word.endswith("rd") or word.endswith("th")):
+
+            # explicit ordinals, 1st, 2nd, 3rd, 4th.... Nth
+            word = word[:-2]
+
+            # handle nth one
+            if next_word == "one":
+                # would return 1 instead otherwise
+                tokens[idx + 1] = Token("", idx)
+                next_word = ""
+
         if word not in string_num_scale and \
                 word not in _STRING_NUM_EN and \
                 word not in _SUMS and \
@@ -538,7 +550,7 @@ def extract_duration_en(text):
         'weeks': None
     }
 
-    pattern = r"(?P<value>\d+(?:\.?\d+)?)\s+{unit}s?"
+    pattern = r"(?P<value>\d+(?:\.?\d+)?)(?:\s+|\-){unit}s?"
     text = _convert_words_to_numbers_en(text)
 
     for unit in time_units:
@@ -725,7 +737,7 @@ def extract_datetime_en(string, dateNow, default_time):
               wordNext == "after" and
               wordNextNext == "tomorrow" and
               not fromFlag and
-              not wordPrev[0].isdigit()):
+              (not wordPrev or not wordPrev[0].isdigit())):
             dayOffset = 2
             used = 3
             if wordPrev == "the":
@@ -733,11 +745,11 @@ def extract_datetime_en(string, dateNow, default_time):
                 used += 1
                 # parse 5 days, 10 weeks, last week, next week
         elif word == "day":
-            if wordPrev[0].isdigit():
+            if wordPrev and wordPrev[0].isdigit():
                 dayOffset += int(wordPrev)
                 start -= 1
                 used = 2
-        elif word == "week" and not fromFlag:
+        elif word == "week" and not fromFlag and wordPrev:
             if wordPrev[0].isdigit():
                 dayOffset += int(wordPrev) * 7
                 start -= 1
@@ -751,7 +763,7 @@ def extract_datetime_en(string, dateNow, default_time):
                 start -= 1
                 used = 2
                 # parse 10 months, next month, last month
-        elif word == "month" and not fromFlag:
+        elif word == "month" and not fromFlag and wordPrev:
             if wordPrev[0].isdigit():
                 monthOffset = int(wordPrev)
                 start -= 1
@@ -765,7 +777,7 @@ def extract_datetime_en(string, dateNow, default_time):
                 start -= 1
                 used = 2
         # parse 5 years, next year, last year
-        elif word == "year" and not fromFlag:
+        elif word == "year" and not fromFlag and wordPrev:
             if wordPrev[0].isdigit():
                 yearOffset = int(wordPrev)
                 start -= 1
@@ -837,6 +849,7 @@ def extract_datetime_en(string, dateNow, default_time):
         validFollowups.append("next")
         validFollowups.append("last")
         validFollowups.append("now")
+        validFollowups.append("this")
         if (word == "from" or word == "after") and wordNext in validFollowups:
             used = 2
             fromFlag = True
@@ -913,6 +926,11 @@ def extract_datetime_en(string, dateNow, default_time):
             if hrAbs is None:
                 hrAbs = 19
             used += 1
+        elif word == "tonight" or word == "night":
+            if hrAbs is None:
+                hrAbs = 22
+            #used += 1 ## NOTE this breaks other tests, TODO refactor me!
+
         # couple of time_unit
         elif word == "2" and wordNext == "of" and \
                 wordNextNext in ["hours", "minutes", "seconds"]:
@@ -934,8 +952,6 @@ def extract_datetime_en(string, dateNow, default_time):
                 minOffset = 15
                 if idx > 2 and words[idx - 3] in markers:
                     words[idx - 3] = ""
-                    if words[idx - 3] == "this":
-                        daySpecified = True
                 words[idx - 2] = ""
             elif wordPrev == "within":
                 hrOffset = 1
