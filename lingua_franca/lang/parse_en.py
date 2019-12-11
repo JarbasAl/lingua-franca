@@ -341,6 +341,18 @@ def _extract_whole_number_with_text_en(tokens, short_scale, ordinals):
         prev_word = tokens[idx - 1].word if idx > 0 else ""
         next_word = tokens[idx + 1].word if idx + 1 < len(tokens) else ""
 
+        if is_numeric(word[:-2]) and \
+                (word.endswith("st") or word.endswith("nd") or word.endswith("rd") or word.endswith("th")):
+
+            # explicit ordinals, 1st, 2nd, 3rd, 4th.... Nth
+            word = word[:-2]
+
+            # handle nth one
+            if next_word == "one":
+                # would return 1 instead otherwise
+                tokens[idx + 1] = Token("", idx)
+                next_word = ""
+
         if word not in string_num_scale and \
                 word not in _STRING_NUM_EN and \
                 word not in _SUMS and \
@@ -899,6 +911,11 @@ def extract_datetime_en(string, dateNow, default_time):
             if hrAbs is None:
                 hrAbs = 19
             used += 1
+        elif word == "tonight" or word == "night":
+            if hrAbs is None:
+                hrAbs = 22
+            #used += 1 ## NOTE this breaks other tests, TODO refactor me!
+
         # couple of time_unit
         elif word == "2" and wordNext == "of" and \
                 wordNextNext in ["hours", "minutes", "seconds"]:
